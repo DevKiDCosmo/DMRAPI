@@ -68,7 +68,7 @@ def exist_element(device_id: int, t: int = 0):
     return False
 
 @app.put("/device/{device_id}/{ip}")
-def add_device(device_id: int, ip: str):
+async def add_device(device_id: int, ip: str):
     if exist_element(device_id):
         return {"msg": "Device already exists", "device_id": device_id}
     
@@ -76,7 +76,7 @@ def add_device(device_id: int, ip: str):
         return {"msg": "IP already exists", "ip": ip}
 
     cda_instance = cda()
-    st = cda_instance.check_device_alive(ip=ip)
+    st = await cda_instance.check_device_alive(ip=ip)
 
     if (st[0] == False):
         return {"msg": "Device is not alive", "device_id": device_id, "ip": ip}
@@ -90,7 +90,7 @@ def get_device_key(ip: str):
     return cda.generate_key(ip)
 
 @app.put("/devicekey/{device_id}/{ip}/{key}")
-def add_device_key(device_id: int, ip: str, key: str):
+async def add_device_key(device_id: int, ip: str, key: str):
     if exist_element(device_id):
         return {"msg": "Device already exists", "device_id": device_id}
     
@@ -98,7 +98,7 @@ def add_device_key(device_id: int, ip: str, key: str):
         return {"msg": "IP already exists", "ip": ip}
 
     cda_instance = cda()
-    st = cda_instance.check_device_alive_key(ip, key)
+    st = await cda_instance.check_device_alive_key(ip, key)
 
     if (st[0] == False):
         return {"msg": "Device is not alive", "device_id": device_id, "ip": ip}
@@ -145,8 +145,31 @@ def reset_device():
     return {"msg": "Device reset", "status": "success"}
 
 @app.get("/key_login/{key}")
-def key_login(key: str):
+async def key_login(key: str):
     for d in device:
         if d[2] == key:
-            return {"msg": "Login success", "device_id": d[0], "ip": d[1], "key": d[2], "timestamp": d[3]}
+            cda_instance = cda()
+            st = await cda_instance.check_device_alive_key(ip=d[1], key=d[2])
+
+            return {"msg": "Login success", "device_id": d[0], "ip": d[1], "key": d[2], "timestamp": d[3], "Status": st}
     return {"msg": "Key not found", "key": key ,"timestamp": timestamp()}
+
+@app.get("/device_login/{device_id}")
+async def log_device(device_id: int):
+    for d in device:
+        if d[0] == device_id:
+            cda_instance = cda()
+            st = await cda_instance.check_device_alive_key(ip=d[1], key=d[2])
+
+            return {"msg": "Login success", "device_id": d[0], "ip": d[1], "key": d[2], "timestamp": d[3], "Status": st}
+    return {"msg": "Device not found", "device_id": device_id}
+
+@app.get("/device_ip/{ip}")
+async def log_device_ip(ip: str):
+    for d in device:
+        if d[1] == ip:
+            cda_instance = cda()
+            st = await cda_instance.check_device_alive_key(ip=d[1], key=d[2])
+
+            return {"msg": "Login success", "device_id": d[0], "ip": d[1], "key": d[2], "timestamp": d[3], "Status": st}
+    return {"msg": "Device not found", "ip": ip}

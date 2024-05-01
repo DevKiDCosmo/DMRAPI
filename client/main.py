@@ -1,4 +1,7 @@
+import base64
+from hashlib import sha256
 import socket
+import os
 
 def create_socket_and_wait_for_ping(port):
     # Erstellen Sie einen TCP/IP-Socket
@@ -21,15 +24,32 @@ def create_socket_and_wait_for_ping(port):
 
             # Empfangen Sie die Daten in kleinen Blöcken und senden Sie sie zurück
             while True:
-                data = connection.recv(16)
-                print('Empfangen {!r}'.format(data))
-                if data:
-                    print('Senden von Daten zurück zum Client')
-                    connection.sendall(data)
-                else:
-                    print('Keine weiteren Daten von', client_address)
-                    break
+                data = connection.recv(16 * 4)
+                print('{!r}'.format(data))
+
+                if data != b"\n":
+                    if os.path.isfile('key'):
+                        with open("key", "r") as file:
+                            if data.decode("utf-8") != file.read():
+                                print("NoAuth")
+                                status = b"Connection denied. NoAuth"
+                                connection.sendall(status)
+                                break
+
+                    with open("key", "w") as file:
+                        file.write(data.decode("utf-8"))
+
+                    with open("key_instruction", "w") as file:
+                        file.write(sha256(base64.b64encode(os.urandom(16) + data).decode("utf-8").encode('utf-8')).hexdigest())
+                        
+                        status = b"OK"
+                        connection.sendall(status)
                 
+                if data == b"\n":
+                    print('Keine Daten mehr von', client_address)
+                    break
+
+
         finally:
             # Reinigen Sie die Verbindung
             connection.close()
